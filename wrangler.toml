@@ -1,0 +1,44 @@
+name = "1paste"
+main = "src/index.tsx"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "1paste.dev/*", zone_name = "1paste.dev" },
+  { pattern = "www.1paste.dev/*", zone_name = "1paste.dev" },
+]
+workers_dev = true
+
+[observability]
+enabled = true
+
+# One Durable Object per paste, gives us an atomic "read-and-burn"
+# that the old KV design could not guarantee (eventual-consistency race).
+[[durable_objects.bindings]]
+name = "PASTE"
+class_name = "PasteDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PasteDO"]
+
+# KV holds only coarse rate-limit counters, never paste content.
+[[kv_namespaces]]
+binding = "RATE"
+id = "4af33af595fc4148ae3aff1aeaf4faaa"
+preview_id = "313bcf0d48224e07903b66da993e7d59"
+
+[vars]
+ENVIRONMENT = "production"
+SITE_URL = "https://1paste.dev"
+MAX_CIPHERTEXT_BYTES = "262144"   # 256 KB ciphertext (~190 KB plaintext)
+RATE_CREATE_PER_MIN = "20"
+
+[env.development]
+[env.development.vars]
+ENVIRONMENT = "development"
+SITE_URL = "http://localhost:8787"
+
+# Backstop sweep; DO alarms expire most pastes on their own.
+[triggers]
+crons = ["0 3 * * *"]
